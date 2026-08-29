@@ -125,6 +125,15 @@
         /* ===== HEADER ROW ===== */
         .header-row {
             display: flex; align-items: center; justify-content: space-between; margin-bottom: 5px;
+            flex-wrap: wrap; row-gap: 10px;
+        }
+        .header-icons { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+
+        @media (max-width: 400px) {
+            h1 { font-size: 1.3rem; gap: 6px; }
+            .version-badge { padding: 3px 8px; }
+            .header-icons { gap: 6px; }
+            .customize-btn { width: 36px; height: 36px; font-size: 0.9rem; }
         }
 
         h1 {
@@ -250,23 +259,25 @@
         .ts-overlay.open { display: flex; }
         .ts-modal {
             background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid var(--card-border);
-            border-radius: 20px; width: 100%; max-width: 380px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            border-radius: 20px; width: 100%; max-width: 380px; max-height: 85vh; overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3); display: flex; flex-direction: column;
         }
         .ts-head {
             display: flex; align-items: center; justify-content: space-between; padding: 18px 20px;
             font-weight: 800; font-size: 1.05rem; color: var(--text-main); border-bottom: 1px solid var(--card-border);
+            flex-shrink: 0;
         }
         .ts-close { background: none; border: none; color: var(--text-light); font-size: 1.1rem; cursor: pointer; padding: 4px 8px; }
-        .ts-body { padding: 18px 20px; }
-        .ts-label { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 700; color: var(--text-light); margin: 14px 0 6px; }
-        .ts-label:first-child { margin-top: 0; }
+        .ts-body { padding: 18px 20px; overflow-y: auto; flex: 1 1 auto; }
+        .ts-row + .ts-row { margin-top: 16px; }
+        .ts-label { display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; font-weight: 700; color: var(--text-light); margin: 0 0 6px; }
         .ts-hex { font-family: monospace; font-size: 0.75rem; color: var(--text-main); }
-        .ts-color-input { width: 100%; height: 42px; border-radius: 12px; border: 1px solid var(--card-border); cursor: pointer; background: none; padding: 2px; }
+        .ts-color-input { width: 100%; height: 46px; border-radius: 12px; border: 1px solid var(--card-border); cursor: pointer; background: none; padding: 2px; }
         .ts-hint { font-size: 0.75rem; color: var(--text-light); margin-top: 16px; line-height: 1.4; }
         .ts-presets { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
         .ts-preset-swatch { width: 34px; height: 34px; border-radius: 50%; cursor: pointer; border: 2px solid var(--card-border); transition: transform 0.15s; }
         .ts-preset-swatch:hover { transform: scale(1.12); }
-        .ts-actions { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--card-border); }
+        .ts-actions { display: flex; gap: 10px; padding: 16px 20px; border-top: 1px solid var(--card-border); flex-shrink: 0; }
         .ts-btn { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; font-size: 0.85rem; border: none; cursor: pointer; }
         .ts-btn-reset { background: var(--toggle-bg); color: var(--text-light); }
         .ts-btn-save { background: linear-gradient(135deg, var(--theme-color), #3b82f6); color: #fff; }
@@ -695,7 +706,7 @@
         
         <div class="header-row">
             <h1>Academic Pro <span class="version-badge">v7</span></h1>
-            <div style="display:flex; align-items:center; gap:8px;">
+            <div class="header-icons">
                 <div class="notif-wrap">
                     <button class="customize-btn" id="notifBtn" onclick="toggleNotifPanel()" title="Notifications">
                         <i class="fas fa-bell"></i>
@@ -1409,13 +1420,17 @@ function escapeHtml(str) {
     return d.innerHTML;
 }
 
-// Poll on load, then every 20s while the tab is open (cheap - only runs
-// while user actually has the page open, no server cost otherwise).
+// Poll on load, then every 7s while the tab is open (cheap - only runs
+// while user actually has the page open, no server cost otherwise). Faster
+// than before to hide Cloudflare KV's eventual-consistency lag (a reply
+// saved by telegram-webhook.js can take a few seconds to become readable
+// from check-reply.js) — polling more often means we catch it on the next
+// try instead of waiting a full cycle.
 document.addEventListener('DOMContentLoaded', () => {
     renderReplyStatus();
     updateNotifBadge();
     pollAllSuggestions();
-    setInterval(pollAllSuggestions, 20000);
+    setInterval(pollAllSuggestions, 7000);
     registerServiceWorker();
 });
 
@@ -1612,50 +1627,54 @@ const CUSTOM_THEME_KEY = 'custom_theme_v1';
     applyCustomThemeIfSaved();
 })();
 
+// Every part of the UI a user can independently recolor. Each field drives
+// one or more real CSS custom properties, so "Background" and "Card" (etc.)
+// are genuinely separate controls instead of all following one color.
+const TS_FIELDS = [
+    { key: 'accent',    label: 'Accent (buttons & highlights)', vars: ['--theme-color'],                         light: '#4f46e5', dark: '#7c9eff' },
+    { key: 'background',label: 'Page Background',               vars: ['--glass-bg'],                            light: '#f1f2fa', dark: '#111622' },
+    { key: 'card',      label: 'Card Background',                vars: ['--card-bg'],                            light: '#ffffff', dark: '#181e2e' },
+    { key: 'input',     label: 'Input & Button Background',      vars: ['--input-bg', '--toggle-bg', '--result-bg'], light: '#f8fafc', dark: '#141a29' },
+    { key: 'text',      label: 'Text Color',                     vars: ['--text-main'],                          light: '#1f2937', dark: '#eef2f7' },
+    { key: 'textLight', label: 'Secondary Text',                 vars: ['--text-light'],                         light: '#6b7280', dark: '#94a3b8' },
+    { key: 'border',    label: 'Border Color',                   vars: ['--card-border'],                        light: '#e5e7eb', dark: '#26314a' }
+];
+
+const TS_PRESETS = [
+    { title: 'Classic Indigo', gradient: '#4f46e5,#3b82f6', values: { accent: '#4f46e5', background: '#f1f2fa', card: '#ffffff', input: '#f8fafc', text: '#1f2937', textLight: '#6b7280', border: '#e5e7eb' } },
+    { title: 'Slate Aurora',   gradient: '#7c9eff,#111622', values: { accent: '#7c9eff', background: '#111622', card: '#181e2e', input: '#141a29', text: '#eef2f7', textLight: '#94a3b8', border: '#26314a' } },
+    { title: 'Emerald',        gradient: '#059669,#f0fdf4', values: { accent: '#059669', background: '#f0fdf4', card: '#ffffff', input: '#f8fafc', text: '#064e3b', textLight: '#3f7a63', border: '#dcfce7' } },
+    { title: 'Rose Night',     gradient: '#db2777,#1a0e14', values: { accent: '#f472b6', background: '#1a0e14', card: '#1f0f18', input: '#170c12', text: '#fce7f3', textLight: '#d99cb8', border: '#3a1a28' } },
+    { title: 'Amber',          gradient: '#d97706,#fffbeb', values: { accent: '#d97706', background: '#fffbeb', card: '#ffffff', input: '#fef8ec', text: '#451a03', textLight: '#92653d', border: '#fde9c7' } }
+];
+
+function tsDefaults() {
+    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    const out = {};
+    TS_FIELDS.forEach(f => { out[f.key] = isDark ? f.dark : f.light; });
+    return out;
+}
+
 function applyCustomThemeIfSaved() {
     const saved = localStorage.getItem(CUSTOM_THEME_KEY);
     if (!saved) return;
     try {
-        const t = JSON.parse(saved);
-        applyCustomThemeVars(t.accent, t.card, t.text);
+        applyCustomThemeVars(JSON.parse(saved));
     } catch {}
 }
 
-function applyCustomThemeVars(accent, card, text) {
+function applyCustomThemeVars(values) {
     const root = document.documentElement.style;
-    root.setProperty('--theme-color', accent);
-    root.setProperty('--card-bg', card);
-    root.setProperty('--glass-bg', card);
-    root.setProperty('--text-main', text);
-    root.setProperty('--input-bg', card);
-    root.setProperty('--result-bg', card);
+    TS_FIELDS.forEach(f => {
+        const v = values[f.key];
+        if (!v) return;
+        f.vars.forEach(cssVar => root.setProperty(cssVar, v));
+    });
 }
 
 function clearCustomThemeVars() {
     const root = document.documentElement.style;
-    ['--theme-color','--card-bg','--glass-bg','--text-main','--input-bg','--result-bg'].forEach(p => root.removeProperty(p));
-}
-
-function openThemeStudio() {
-    const saved = localStorage.getItem(CUSTOM_THEME_KEY);
-    let t;
-    try { t = saved ? JSON.parse(saved) : null; } catch { t = null; }
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const accentDefault = getComputedStyle(document.documentElement).getPropertyValue('--theme-color').trim() || (isDark ? '#7c9eff' : '#4f46e5');
-    const cardDefault = isDark ? '#181e2e' : '#ffffff';
-    const textDefault = isDark ? '#eef2f7' : '#1f2937';
-
-    document.getElementById('tsAccent').value = toHex(t?.accent || accentDefault);
-    document.getElementById('tsCard').value = toHex(t?.card || cardDefault);
-    document.getElementById('tsText').value = toHex(t?.text || textDefault);
-    updateHexLabels();
-
-    document.getElementById('themeStudioOverlay').classList.add('open');
-    haptic(20);
-}
-
-function closeThemeStudio() {
-    document.getElementById('themeStudioOverlay').classList.remove('open');
+    TS_FIELDS.forEach(f => f.vars.forEach(cssVar => root.removeProperty(cssVar)));
 }
 
 function toHex(v) {
@@ -1664,37 +1683,62 @@ function toHex(v) {
     return '#4f46e5';
 }
 
-function updateHexLabels() {
-    document.getElementById('tsAccentHex').textContent = document.getElementById('tsAccent').value;
-    document.getElementById('tsCardHex').textContent = document.getElementById('tsCard').value;
-    document.getElementById('tsTextHex').textContent = document.getElementById('tsText').value;
+function buildThemeStudioFields(values) {
+    const container = document.getElementById('tsFieldsContainer');
+    container.innerHTML = TS_FIELDS.map(f => `
+        <div class="ts-row">
+            <label class="ts-label">${f.label} <span id="tsHex_${f.key}" class="ts-hex">${values[f.key]}</span></label>
+            <input type="color" id="ts_${f.key}" class="ts-color-input" value="${values[f.key]}" oninput="previewThemeStudio()">
+        </div>
+    `).join('');
+
+    const presets = document.getElementById('tsPresets');
+    presets.innerHTML = TS_PRESETS.map((p, i) => `
+        <span class="ts-preset-swatch" style="background:linear-gradient(135deg,${p.gradient})" onclick="applyPreset(${i})" title="${p.title}"></span>
+    `).join('');
+}
+
+function readThemeStudioFields() {
+    const values = {};
+    TS_FIELDS.forEach(f => { values[f.key] = document.getElementById(`ts_${f.key}`).value; });
+    return values;
+}
+
+function openThemeStudio() {
+    const saved = localStorage.getItem(CUSTOM_THEME_KEY);
+    let t;
+    try { t = saved ? JSON.parse(saved) : null; } catch { t = null; }
+
+    const defaults = tsDefaults();
+    const values = {};
+    TS_FIELDS.forEach(f => { values[f.key] = toHex(t?.[f.key] || defaults[f.key]); });
+
+    buildThemeStudioFields(values);
+    document.getElementById('themeStudioOverlay').classList.add('open');
+    haptic(20);
+}
+
+function closeThemeStudio() {
+    document.getElementById('themeStudioOverlay').classList.remove('open');
 }
 
 function previewThemeStudio() {
-    updateHexLabels();
-    applyCustomThemeVars(
-        document.getElementById('tsAccent').value,
-        document.getElementById('tsCard').value,
-        document.getElementById('tsText').value
-    );
+    const values = readThemeStudioFields();
+    TS_FIELDS.forEach(f => { document.getElementById(`tsHex_${f.key}`).textContent = values[f.key]; });
+    applyCustomThemeVars(values);
 }
 
-function applyPreset(accent, card, text) {
-    document.getElementById('tsAccent').value = accent;
-    document.getElementById('tsCard').value = card;
-    document.getElementById('tsText').value = text;
+function applyPreset(index) {
+    const preset = TS_PRESETS[index];
+    TS_FIELDS.forEach(f => { document.getElementById(`ts_${f.key}`).value = preset.values[f.key]; });
     previewThemeStudio();
     haptic(15);
 }
 
 function saveThemeStudio() {
-    const t = {
-        accent: document.getElementById('tsAccent').value,
-        card: document.getElementById('tsCard').value,
-        text: document.getElementById('tsText').value
-    };
-    localStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(t));
-    applyCustomThemeVars(t.accent, t.card, t.text);
+    const values = readThemeStudioFields();
+    localStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(values));
+    applyCustomThemeVars(values);
     closeThemeStudio();
     showToast('🎨 Your theme is saved!', 'success');
     haptic(30);
@@ -2420,24 +2464,11 @@ function shareResult() {
             </div>
 
             <div class="ts-body">
-                <label class="ts-label">Accent Color <span id="tsAccentHex" class="ts-hex"></span></label>
-                <input type="color" id="tsAccent" class="ts-color-input" oninput="previewThemeStudio()">
-
-                <label class="ts-label">Card Background <span id="tsCardHex" class="ts-hex"></span></label>
-                <input type="color" id="tsCard" class="ts-color-input" oninput="previewThemeStudio()">
-
-                <label class="ts-label">Text Color <span id="tsTextHex" class="ts-hex"></span></label>
-                <input type="color" id="tsText" class="ts-color-input" oninput="previewThemeStudio()">
+                <div id="tsFieldsContainer"></div>
 
                 <p class="ts-hint">Preview updates live behind this window. Save to keep it — it'll be remembered next time you open the app.</p>
 
-                <div class="ts-presets">
-                    <span class="ts-preset-swatch" style="background:linear-gradient(135deg,#4f46e5,#3b82f6)" onclick="applyPreset('#4f46e5','#ffffff','#1f2937')" title="Classic Indigo"></span>
-                    <span class="ts-preset-swatch" style="background:linear-gradient(135deg,#7c9eff,#111622)" onclick="applyPreset('#7c9eff','#181e2e','#eef2f7')" title="Slate Aurora"></span>
-                    <span class="ts-preset-swatch" style="background:linear-gradient(135deg,#059669,#f0fdf4)" onclick="applyPreset('#059669','#ffffff','#064e3b')" title="Emerald"></span>
-                    <span class="ts-preset-swatch" style="background:linear-gradient(135deg,#db2777,#1a0e14)" onclick="applyPreset('#f472b6','#1f0f18','#fce7f3')" title="Rose Night"></span>
-                    <span class="ts-preset-swatch" style="background:linear-gradient(135deg,#d97706,#fffbeb)" onclick="applyPreset('#d97706','#ffffff','#451a03')" title="Amber"></span>
-                </div>
+                <div class="ts-presets" id="tsPresets"></div>
             </div>
 
             <div class="ts-actions">

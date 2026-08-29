@@ -1,0 +1,12 @@
+name = "present-sir"
+pages_build_output_dir = "frontend"
+compatibility_date = "2024-09-01"
+
+# Create the namespace once with:
+#   npx wrangler kv namespace create APP_KV
+# then paste the id it prints below (needed for `wrangler pages dev` locally).
+# For the actual deployed site, bind APP_KV in the Cloudflare dashboard instead:
+# Pages project -> Settings -> Functions -> KV namespace bindings.
+[[kv_namespaces]]
+binding = "APP_KV"
+id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"

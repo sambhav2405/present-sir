@@ -1,0 +1,21 @@
+{
+    "name": "Academic Pro Attendance Manager",
+    "short_name": "Academic Pro",
+    "start_url": ".",
+    "display": "standalone",
+    "background_color": "#000428",
+    "theme_color": "#4f46e5",
+    "orientation": "portrait",
+    "icons": [
+      {
+        "src": "unnamed.jpg",
+        "sizes": "192x192",
+        "type": "image/jpeg"
+      },
+      {
+        "src": "unnamed.jpg",
+        "sizes": "512x512",
+        "type": "image/jpeg"
+      }
+    ]
+}

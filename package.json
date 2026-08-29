@@ -1,0 +1,13 @@
+{
+  "name": "present-sir",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev frontend",
+    "deploy": "wrangler pages deploy frontend"
+  },
+  "devDependencies": {
+    "wrangler": "^3.78.0"
+  }
+}

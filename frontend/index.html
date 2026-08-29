@@ -414,6 +414,18 @@
         .sugg-privacy i { color: #10b981; }
 
         #replyStatusArea { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+        .push-prompt {
+            display: none; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+            background: var(--toggle-bg); border: 1px solid var(--card-border); border-radius: 14px;
+            padding: 12px 14px; margin-top: 12px;
+        }
+        .push-prompt.show { display: flex; animation: tourFadeIn 0.25s ease; }
+        .push-prompt-text { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; color: var(--text-main); font-weight: 600; flex: 1 1 200px; }
+        .push-prompt-text i { color: var(--theme-color); }
+        .push-prompt-actions { display: flex; gap: 8px; }
+        .push-prompt-actions button { padding: 8px 14px; border-radius: 10px; border: none; cursor: pointer; font-weight: 700; font-size: 0.78rem; }
+        .push-prompt-actions .pp-dismiss { background: none; color: var(--text-light); }
+        .push-prompt-actions .pp-enable { background: linear-gradient(135deg, var(--theme-color), #3b82f6); color: #fff; }
         .reply-box { position: relative; border-radius: 14px; padding: 12px 34px 12px 14px; font-size: 0.85rem; border: 1px solid var(--card-border); background: var(--input-bg); }
         .reply-box-close { position: absolute; top: 10px; right: 10px; background: none; border: none; color: var(--text-light); font-size: 0.8rem; cursor: pointer; padding: 4px 6px; opacity: 0.6; }
         .reply-box-close:hover { opacity: 1; }
@@ -1036,6 +1048,14 @@
 
         <div class="sugg-privacy"><i class="fas fa-shield-alt"></i> No email, phone, or device data is ever collected</div>
 
+        <div class="push-prompt" id="pushPromptBanner">
+            <div class="push-prompt-text"><i class="fas fa-bell"></i> <span>Get notified the instant the developer replies?</span></div>
+            <div class="push-prompt-actions">
+                <button class="pp-dismiss" onclick="dismissPushPrompt()">Not now</button>
+                <button class="pp-enable" onclick="acceptPushPrompt()">Enable</button>
+            </div>
+        </div>
+
         <div id="replyStatusArea"></div>
     </div>
 
@@ -1174,9 +1194,7 @@ async function sendSuggestion() {
             branchEl.value = '';
             saveSuggestionId(data.id, text);
             renderReplyStatus();
-            if (Notification.permission === 'default') {
-                showToast('🔔 Tap the bell icon to get notified the moment the developer replies!', 'info', 5000);
-            }
+            maybeShowPushPrompt();
         } else {
             showToast('❌ Could not send. Try again later.', 'error');
         }
@@ -1305,6 +1323,35 @@ async function enablePushNotifications() {
         console.error('enablePushNotifications failed:', err);
         showToast('❌ Could not enable notifications.', 'error');
     }
+}
+
+// Auto-offered once, right after sending a suggestion — the moment a user
+// most wants to know when the reply lands. Never shown again after that
+// first time, whether they enable it or dismiss it (tracked in
+// PUSH_PROMPT_KEY), and skipped entirely if they already have it on (or
+// already said no via the browser's own permission prompt).
+const PUSH_PROMPT_KEY = 'push_prompt_asked_v1';
+
+async function maybeShowPushPrompt() {
+    if (localStorage.getItem(PUSH_PROMPT_KEY)) return;
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+
+    if (Notification.permission !== 'default' || await isPushSubscribed()) {
+        localStorage.setItem(PUSH_PROMPT_KEY, '1');
+        return;
+    }
+    document.getElementById('pushPromptBanner').classList.add('show');
+}
+
+function dismissPushPrompt() {
+    localStorage.setItem(PUSH_PROMPT_KEY, '1');
+    document.getElementById('pushPromptBanner').classList.remove('show');
+}
+
+async function acceptPushPrompt() {
+    localStorage.setItem(PUSH_PROMPT_KEY, '1');
+    document.getElementById('pushPromptBanner').classList.remove('show');
+    await enablePushNotifications();
 }
 
 // ===== NOTIFICATION BELL =====

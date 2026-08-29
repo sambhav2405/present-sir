@@ -9,4 +9,4 @@ compatibility_date = "2024-09-01"
 # Pages project -> Settings -> Functions -> KV namespace bindings.
 [[kv_namespaces]]
 binding = "APP_KV"
-id = "REPLACE_WITH_YOUR_KV_NAMESPACE_ID"
+id = "bdbff959f92045988eb0b0e5261714e9"

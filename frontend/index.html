@@ -218,7 +218,7 @@
         }
         .customize-btn:hover { transform: rotate(15deg) scale(1.05); }
 
-        .notif-wrap { position: relative; }
+        .notif-wrap { position: static; }
         .notif-badge {
             position: absolute; top: -2px; right: -2px; min-width: 16px; height: 16px; padding: 0 3px;
             border-radius: 50%; background: #ef4444; border: 2px solid var(--card-bg); color: #fff;
@@ -226,15 +226,48 @@
             animation: notifPulse 1.6s ease-in-out infinite;
         }
         @keyframes notifPulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.18); } }
+
+        /* Desktop dropdown — fixed so card overflow never clips it */
         .notif-panel {
-            display: none; position: absolute; top: 50px; right: 0; width: 300px; max-width: calc(100vw - 40px);
-            background: var(--card-bg); backdrop-filter: blur(20px); border: 1px solid var(--card-border);
-            border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.3); z-index: 500; overflow: hidden;
+            display: none; position: fixed; width: 320px;
+            background: var(--card-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 18px; box-shadow: 0 20px 50px rgba(0,0,0,0.35); z-index: 8000; overflow: hidden;
         }
         .notif-panel.open { display: block; animation: tourFadeIn 0.2s ease; }
+
+        /* Mobile bottom-sheet modal */
+        .notif-modal-overlay {
+            display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5);
+            z-index: 9000; align-items: flex-end; justify-content: center;
+            backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+        }
+        .notif-modal-overlay.open { display: flex; animation: tourFadeIn 0.2s ease; }
+        .notif-modal-sheet {
+            background: var(--card-bg); border-radius: 22px 22px 0 0;
+            width: 100%; max-width: 480px; overflow: hidden;
+            box-shadow: 0 -10px 40px rgba(0,0,0,0.35);
+            animation: slideUpSheet 0.3s cubic-bezier(0.34,1.56,0.64,1);
+            max-height: 90vh; display: flex; flex-direction: column;
+        }
+        @keyframes slideUpSheet {
+            from { transform: translateY(100%); opacity: 0; }
+            to   { transform: translateY(0);    opacity: 1; }
+        }
+        .notif-modal-handle {
+            width: 40px; height: 4px; background: var(--card-border); border-radius: 4px;
+            margin: 10px auto 0; flex-shrink: 0;
+        }
+        .notif-modal-body-wrap {
+            overflow-y: auto; flex: 1; padding: 8px;
+            padding-bottom: calc(16px + env(safe-area-inset-bottom, 12px));
+            -webkit-overflow-scrolling: touch;
+        }
+
         .notif-panel-head {
             display: flex; justify-content: space-between; align-items: center; padding: 14px 16px;
             font-weight: 800; color: var(--text-main); border-bottom: 1px solid var(--card-border); font-size: 0.95rem;
+            flex-shrink: 0;
         }
         .notif-panel-close { background: none; border: none; color: var(--text-light); cursor: pointer; font-size: 0.95rem; padding: 4px; }
         .notif-panel-body { max-height: 320px; overflow-y: auto; padding: 8px; }
@@ -243,9 +276,14 @@
             padding: 10px 12px; border-radius: 12px; margin-bottom: 6px; background: var(--toggle-bg);
             border-left: 3px solid var(--theme-color);
         }
-        .notif-item:last-child { margin-bottom: 0; }
+        .notif-item:last-child { margin-bottom: 4px; }
         .notif-item-you { font-size: 0.72rem; color: var(--text-light); margin-bottom: 4px; }
         .notif-item-reply { font-size: 0.85rem; color: var(--text-main); font-weight: 600; line-height: 1.4; }
+        .notif-item-latest { border-left-color: #10b981; background: rgba(16,185,129,0.08); }
+        .notif-item-latest::after {
+            content: 'NEW'; float: right; font-size: 0.6rem; font-weight: 800; color: #10b981;
+            background: rgba(16,185,129,0.15); padding: 2px 6px; border-radius: 6px; margin-top: 2px;
+        }
         .notif-enable-btn {
             width: 100%; padding: 10px; margin-bottom: 8px; border-radius: 12px; border: none; cursor: pointer;
             background: linear-gradient(135deg, var(--theme-color), #3b82f6); color: #fff; font-weight: 700;
@@ -714,8 +752,6 @@
     <div id="toast-container"></div>
 
     <div class="glass-card" id="mainContainer">
-
-        
         <div class="header-row">
             <h1>Academic Pro <span class="version-badge">v7</span></h1>
             <div class="header-icons">
@@ -726,7 +762,7 @@
                     </button>
                     <div class="notif-panel" id="notifPanel">
                         <div class="notif-panel-head">
-                            <span>Replies</span>
+                            <span>🔔 Replies</span>
                             <button class="notif-panel-close" onclick="toggleNotifPanel(false)"><i class="fas fa-times"></i></button>
                         </div>
                         <div class="notif-panel-body" id="notifPanelBody"></div>
@@ -745,6 +781,18 @@
             </div>
         </div>
         <p class="subtitle">Attendance & Target Manager</p>
+
+        <!-- Mobile Notification Bottom Sheet -->
+        <div class="notif-modal-overlay" id="notifModalOverlay" onclick="_notifModalBgClick(event)">
+            <div class="notif-modal-sheet">
+                <div class="notif-modal-handle"></div>
+                <div class="notif-panel-head">
+                    <span>🔔 Replies</span>
+                    <button class="notif-panel-close" onclick="toggleNotifPanel(false)"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="notif-modal-body-wrap" id="notifPanelBodyMobile"></div>
+            </div>
+        </div>
 
         <div id="inputSection">
             <p style="font-size: 0.95rem; color: var(--text-light); font-weight: 600; margin-bottom: 12px; display:flex; align-items:center; justify-content:space-between;">
@@ -1380,36 +1428,77 @@ async function renderNotifPanel() {
     const replied = getMySuggestions().filter(i => i.reply).slice().reverse();
     const listHtml = !replied.length
         ? '<div class="notif-empty">No replies yet. Send a suggestion and the developer\'s reply will show up here.</div>'
-        : replied.map(item => `
-            <div class="notif-item">
-                <div class="notif-item-you">You: "${escapeHtml(item.text)}"</div>
+        : replied.map((item, idx) => {
+            const youRow = item.text
+                ? `<div class="notif-item-you">You: "${escapeHtml(item.text)}"</div>`
+                : '';
+            return `
+            <div class="notif-item${idx === 0 ? ' notif-item-latest' : ''}">
+                ${youRow}
                 <div class="notif-item-reply">${escapeHtml(item.reply)}</div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
 
-    body.innerHTML = enableRow + listHtml;
+    const html = enableRow + listHtml;
+    const body    = document.getElementById('notifPanelBody');
+    const bodyMob = document.getElementById('notifPanelBodyMobile');
+    if (body)    body.innerHTML    = html;
+    if (bodyMob) bodyMob.innerHTML = html;
+}
+
+function _isMobile() { return window.innerWidth < 600; }
+
+function _notifModalBgClick(e) {
+    if (e.target === document.getElementById('notifModalOverlay')) toggleNotifPanel(false);
+}
+
+function _positionNotifPanel() {
+    const btn   = document.getElementById('notifBtn');
+    const panel = document.getElementById('notifPanel');
+    if (!btn || !panel) return;
+    const rect = btn.getBoundingClientRect();
+    let top  = rect.bottom + 8;
+    let left = rect.right - 320;
+    if (left < 8) left = 8;
+    if (top + 400 > window.innerHeight) top = rect.top - 420;
+    panel.style.top  = top  + 'px';
+    panel.style.left = left + 'px';
 }
 
 function toggleNotifPanel(forceOpen) {
-    const panel = document.getElementById('notifPanel');
-    if (!panel) return;
-    const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !panel.classList.contains('open');
+    const panel   = document.getElementById('notifPanel');
+    const overlay = document.getElementById('notifModalOverlay');
+    if (!panel && !overlay) return;
+
+    const mobile   = _isMobile();
+    const isOpen   = mobile
+        ? overlay && overlay.classList.contains('open')
+        : panel  && panel.classList.contains('open');
+    const shouldOpen = typeof forceOpen === 'boolean' ? forceOpen : !isOpen;
 
     if (shouldOpen) {
         renderNotifPanel();
-        panel.classList.add('open');
+        if (mobile && overlay) {
+            overlay.classList.add('open');
+            document.body.style.overflow = 'hidden';
+        } else if (panel) {
+            _positionNotifPanel();
+            panel.classList.add('open');
+        }
         haptic(15);
-        // Opening the bell = you've seen these replies.
         const list = getMySuggestions();
         list.forEach(i => { if (i.reply) i.seen = true; });
         saveMySuggestions(list);
         updateNotifBadge();
     } else {
-        panel.classList.remove('open');
+        if (panel)   panel.classList.remove('open');
+        if (overlay) overlay.classList.remove('open');
+        document.body.style.overflow = '';
     }
 }
 
 document.addEventListener('click', (e) => {
+    if (_isMobile()) return;
     const wrap = document.querySelector('.notif-wrap');
     if (wrap && !wrap.contains(e.target)) toggleNotifPanel(false);
 });

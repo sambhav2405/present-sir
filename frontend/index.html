@@ -810,6 +810,31 @@
         [data-theme="dark"] .msg-safe { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border: 1px solid rgba(16, 185, 129, 0.3); }
         [data-theme="dark"] .msg-warning { background: rgba(148, 163, 184, 0.15); color: #cbd5e1; border: 1px solid rgba(148, 163, 184, 0.3); }
 
+        /* ===== LAB BREAKDOWN (highlighted) ===== */
+        .toggle-btn-lab {
+            border: 2px solid #d97706; font-weight: 800;
+            background: linear-gradient(135deg, rgba(217,119,6,0.12), rgba(124,58,237,0.10));
+        }
+        .toggle-btn-lab b { color: #d97706; }
+        .toggle-btn-lab.active { border-left: 6px solid #d97706; background: linear-gradient(135deg, rgba(217,119,6,0.18), rgba(124,58,237,0.16)); }
+        [data-theme="dark"] .toggle-btn-lab { background: linear-gradient(135deg, rgba(217,119,6,0.18), rgba(124,58,237,0.16)); }
+
+        .lab-card { border: 1.5px solid rgba(217,119,6,0.4); }
+        .lab-weight-row {
+            display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+            margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--card-border);
+        }
+        .lab-weight-label { font-size: 0.78rem; font-weight: 700; color: var(--text-light); }
+        .lab-weight-stepper { display: flex; align-items: center; gap: 8px; }
+        .lab-weight-btn {
+            width: 26px; height: 26px; border-radius: 50%; border: 2px solid #d97706; background: var(--card-bg);
+            color: #d97706; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center;
+            font-size: 1rem; line-height: 1; transition: all 0.2s ease; padding: 0;
+        }
+        .lab-weight-btn:hover { background: #d97706; color: #fff; }
+        .lab-weight-val { font-weight: 800; font-size: 1rem; min-width: 18px; text-align: center; color: var(--text-main); }
+        .lab-equiv { font-size: 0.72rem; color: #d97706; font-weight: 700; margin-top: 8px; }
+
         /* ===== CHART ===== */
         .chart-container { background: var(--card-bg); border-radius: 16px; padding: 20px; margin-bottom: 15px; border: 1px solid var(--card-border); box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
         .chart-tabs { display: flex; gap: 8px; margin-bottom: 15px; }
@@ -1180,6 +1205,30 @@
                             <button class="filter-btn" onclick="sortSubjects('desc', this)"><i class="fas fa-sort-amount-down"></i> High→Low</button>
                         </div>
                         <div id="subjectCards"></div>
+                    </div>
+
+                    <button class="toggle-btn toggle-btn-lab" onclick="toggleSection('labList', this)">
+                        <div style="display:flex; align-items:center;">
+                            <i class="fas fa-flask" style="margin-right:12px; font-size:1.2rem; color:#d97706;"></i>
+                            <b>🔬 Lab Breakdown</b>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <span class="info-btn" onclick="event.stopPropagation(); toggleInfo('infoLab')" style="margin:0;"><i class="fas fa-info-circle"></i></span>
+                            <i class="fas fa-chevron-down"></i>
+                        </div>
+                    </button>
+                    <div id="infoLab" class="info-text">
+                        <b>हिंदी:</b> यहाँ सिर्फ Lab subjects दिखेंगे। हर Lab card पर नीचे एक काउंटर है — वहाँ सेट करें कि 1 Lab attendance कितनी Lecture classes के बराबर मानी जाए (default <b>2</b>, − / + से 1/2/3... में बदलें)। इससे Lab और Lecture का ratio और equivalent classes दोनों दिख जाएँगे।
+                    </div>
+                    <div id="labList" class="collapsible-content">
+                        <div class="filter-bar">
+                            <button class="filter-btn active" onclick="filterLabs('all', this)"><i class="fas fa-th"></i> All</button>
+                            <button class="filter-btn" onclick="filterLabs('danger', this)"><i class="fas fa-exclamation-triangle"></i> Danger</button>
+                            <button class="filter-btn" onclick="filterLabs('safe', this)"><i class="fas fa-check-circle"></i> Safe</button>
+                            <button class="filter-btn" onclick="sortLabs('asc', this)"><i class="fas fa-sort-amount-up-alt"></i> Low→High</button>
+                            <button class="filter-btn" onclick="sortLabs('desc', this)"><i class="fas fa-sort-amount-down"></i> High→Low</button>
+                        </div>
+                        <div id="labCards"></div>
                     </div>
 
                     <div class="divider"><span>⚙️ PREDICTION TOOLS</span></div>
@@ -1916,7 +1965,6 @@ async function renderNotifPanel() {
         }).join('');
 
     const html = enableRow + listHtml;
-    const body    = document.getElementById('notifPanelBody');
     const bodyMob = document.getElementById('notifPanelBodyMobile');
     if (body)    body.innerHTML    = html;
     if (bodyMob) bodyMob.innerHTML = html;
@@ -2224,6 +2272,22 @@ let g_subjects = [];
 let g_chart = null;
 let g_currentFilter = 'all';
 let g_currentSort = null;
+let g_labFilter = 'all';
+let g_labSort = null;
+let g_labWeights = {};
+const LAB_WEIGHTS_KEY = 'academic_lab_weights_v1';
+
+function loadLabWeights() {
+    try { g_labWeights = JSON.parse(localStorage.getItem(LAB_WEIGHTS_KEY) || '{}'); }
+    catch (e) { g_labWeights = {}; }
+}
+function saveLabWeights() {
+    localStorage.setItem(LAB_WEIGHTS_KEY, JSON.stringify(g_labWeights));
+}
+function getLabWeight(key) {
+    const w = g_labWeights[key];
+    return (typeof w === 'number' && w >= 1) ? w : 2; // default: 1 lab = 2 classes
+}
 
 // ===== THEME STUDIO (custom user colors) =====
 // User picks 3 colors -> we override the same CSS variables the built-in
@@ -2603,6 +2667,7 @@ function showToast(message, type = 'success', duration = 3000) {
 
 // ===== ON LOAD =====
 window.addEventListener('load', () => {
+    loadLabWeights();
     const saved = localStorage.getItem('academic_data_v8') || localStorage.getItem('academic_data_v7');
     if (saved) {
         document.getElementById('inputData').value = saved;
@@ -2676,24 +2741,47 @@ function processReport() {
         const lines = text.split('\n');
         g_present = 0; g_total = 0; g_subjects = [];
         let found = false;
-        const regex = /^(.*?)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([0-9.]+)$/;
+        // Rows that include a "Subject Type" column (Lecture / Lab / ...), e.g.:
+        // "9  ITUP521  Machine Learning Lab  Lab  20  4  0  0  100.00"
+        const typedRegex = /^(?:\d+\s+)?(\S+)\s+(.+?)\s+(Lecture|Lab|Tutorial|Practical)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([0-9.]+)$/i;
+        // Older/plain rows without a Subject Type column.
+        const plainRegex = /^(.*?)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+([0-9.]+)$/;
 
         lines.forEach(line => {
-            const match = line.trim().match(regex);
-            if (match) {
+            const trimmed = line.trim();
+            let code = '', rawName = '', type = '', present, od, makeup, absent;
+
+            const typedMatch = trimmed.match(typedRegex);
+            if (typedMatch) {
+                code = typedMatch[1];
+                rawName = typedMatch[2].trim();
+                type = typedMatch[3];
+                present = parseInt(typedMatch[4]);
+                od = parseInt(typedMatch[5]);
+                makeup = parseInt(typedMatch[6]);
+                absent = parseInt(typedMatch[7]);
+            } else {
+                const plainMatch = trimmed.match(plainRegex);
+                if (plainMatch) {
+                    rawName = plainMatch[1].replace(/^\d+\s+/, '').trim();
+                    present = parseInt(plainMatch[2]);
+                    od = parseInt(plainMatch[3]);
+                    makeup = parseInt(plainMatch[4]);
+                    absent = parseInt(plainMatch[5]);
+                    type = /\blab\b/i.test(rawName) ? 'Lab' : 'Lecture';
+                }
+            }
+
+            if (rawName) {
                 found = true;
-                const rawName = match[1].replace(/^\d+\s+/, '').trim();
-                const present = parseInt(match[2]);
-                const od = parseInt(match[3]);
-                const makeup = parseInt(match[4]);
-                const absent = parseInt(match[5]);
                 const attended = present + od + makeup;
                 const total = present + od + absent;
+                const isLab = /lab/i.test(type);
 
                 if (total > 0) {
                     g_present += attended;
                     g_total += total;
-                    g_subjects.push({ name: rawName, attended, total, percent: ((attended / total) * 100).toFixed(2) });
+                    g_subjects.push({ name: rawName, code, type: isLab ? 'Lab' : 'Lecture', attended, total, percent: ((attended / total) * 100).toFixed(2) });
                 }
             }
         });
@@ -2752,9 +2840,15 @@ function updateDashboard() {
 
     g_currentFilter = 'all';
     g_currentSort = null;
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-    document.querySelector('.filter-btn').classList.add('active'); 
+    document.querySelectorAll('#subjectList .filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('#subjectList .filter-btn').classList.add('active');
     renderSubjectCards();
+
+    g_labFilter = 'all';
+    g_labSort = null;
+    document.querySelectorAll('#labList .filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelector('#labList .filter-btn').classList.add('active');
+    renderLabCards();
 
     document.getElementById('dashboard').style.display = 'block';
     haptic(p >= 75 ? [50, 30, 80] : [100, 50, 100]);
@@ -2806,23 +2900,23 @@ function launchConfetti(percent) {
     }
 }
 
-// ===== FEATURE 8: SUBJECT FILTER & SORT =====
+// ===== FEATURE 8: SUBJECT FILTER & SORT (Lecture-only "Subject Breakdown") =====
 function filterSubjects(type, btn) {
     haptic(30);
     g_currentFilter = type;
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('#subjectList .filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
     renderSubjectCards();
 }
 
 function sortSubjects(order, btn) {
     haptic(30);
-    g_currentFilter = 'all'; 
+    g_currentFilter = 'all';
     g_currentSort = order;
-    
-    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+
+    document.querySelectorAll('#subjectList .filter-btn').forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
-    
+
     renderSubjectCards();
 }
 
@@ -2832,11 +2926,51 @@ function renderSubjects() {
     renderSubjectCards();
 }
 
+function buildSubCardHtml(sub, color) {
+    const p = parseFloat(sub.percent);
+    let msgHtml = '';
+
+    if (p < 75) {
+        const reqClasses = Math.ceil((0.75 * sub.total - sub.attended) / 0.25);
+        msgHtml = `<div class="sub-msg msg-danger"><i class="fas fa-exclamation-triangle"></i> Attend <b>${reqClasses}</b> more</div>`;
+    } else {
+        const bunks = Math.floor((sub.attended / 0.75) - sub.total);
+        msgHtml = bunks > 0
+            ? `<div class="sub-msg msg-safe"><i class="fas fa-check-circle"></i> Safe to bunk <b>${bunks}</b></div>`
+            : `<div class="sub-msg msg-warning">Near 75%. Don't bunk!</div>`;
+    }
+
+    return `
+        <div class="sub-header">
+            <span class="sub-name">${sub.name}</span>
+            <span class="sub-percent" style="color:${color}">${sub.percent}%</span>
+        </div>
+        <div class="progress-track">
+            <div class="progress-fill" style="width:0%; background:${color};" data-target="${sub.percent}"></div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-size:0.8rem; font-weight:700; color:var(--text-light);">${sub.attended}/${sub.total} classes</span>
+            ${msgHtml}
+        </div>
+    `;
+}
+
+function animateCard(card, index) {
+    requestAnimationFrame(() => {
+        card.style.animation = `slideUpFade 0.5s ease forwards`;
+        card.style.animationDelay = `${index * 0.08}s`;
+        setTimeout(() => {
+            const fill = card.querySelector('.progress-fill');
+            if (fill) fill.style.width = fill.dataset.target + '%';
+        }, index * 80 + 100);
+    });
+}
+
 function renderSubjectCards() {
     const container = document.getElementById('subjectCards');
     container.innerHTML = '';
 
-    let subjects = [...g_subjects];
+    let subjects = g_subjects.filter(s => s.type !== 'Lab');
 
     if (g_currentFilter === 'danger') subjects = subjects.filter(s => parseFloat(s.percent) < 75);
     else if (g_currentFilter === 'safe') subjects = subjects.filter(s => parseFloat(s.percent) >= 75);
@@ -2852,46 +2986,107 @@ function renderSubjectCards() {
     subjects.forEach((sub, index) => {
         const p = parseFloat(sub.percent);
         const color = p < 75 ? '#ef4444' : '#10b981';
-        let msgHtml = '';
-
-        if (p < 75) {
-            const reqClasses = Math.ceil((0.75 * sub.total - sub.attended) / 0.25);
-            msgHtml = `<div class="sub-msg msg-danger"><i class="fas fa-exclamation-triangle"></i> Attend <b>${reqClasses}</b> more</div>`;
-        } else {
-            const bunks = Math.floor((sub.attended / 0.75) - sub.total);
-            msgHtml = bunks > 0
-                ? `<div class="sub-msg msg-safe"><i class="fas fa-check-circle"></i> Safe to bunk <b>${bunks}</b></div>`
-                : `<div class="sub-msg msg-warning">Near 75%. Don't bunk!</div>`;
-        }
 
         const card = document.createElement('div');
         card.className = 'sub-card';
         card.style.borderLeftColor = color;
         card.style.animationDelay = `${index * 0.08}s`;
+        card.innerHTML = buildSubCardHtml(sub, color);
+
+        container.appendChild(card);
+        animateCard(card, index);
+    });
+}
+
+// ===== LAB BREAKDOWN: FILTER, SORT & PER-LAB WEIGHT (1 Lab = N classes) =====
+function filterLabs(type, btn) {
+    haptic(30);
+    g_labFilter = type;
+    document.querySelectorAll('#labList .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderLabCards();
+}
+
+function sortLabs(order, btn) {
+    haptic(30);
+    g_labFilter = 'all';
+    g_labSort = order;
+
+    document.querySelectorAll('#labList .filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+
+    renderLabCards();
+}
+
+function labKey(sub) {
+    return sub.code || sub.name;
+}
+
+function safeDomId(key) {
+    return key.replace(/[^a-zA-Z0-9]/g, '_');
+}
+
+function changeLabWeight(key, delta) {
+    let w = getLabWeight(key) + delta;
+    w = Math.max(1, Math.min(10, w));
+    g_labWeights[key] = w;
+    saveLabWeights();
+    haptic(20);
+
+    const id = safeDomId(key);
+    const valEl = document.getElementById('labWeight_' + id);
+    const equivEl = document.getElementById('labEquiv_' + id);
+    const sub = g_subjects.find(s => s.type === 'Lab' && labKey(s) === key);
+    if (valEl) valEl.innerText = w;
+    if (equivEl && sub) {
+        equivEl.innerHTML = `📊 Ratio: 1 Lab ≈ <b>${w}</b> Lecture Classes &nbsp;|&nbsp; Equivalent: <b>${sub.attended * w}/${sub.total * w}</b> classes`;
+    }
+}
+
+function renderLabCards() {
+    const container = document.getElementById('labCards');
+    container.innerHTML = '';
+
+    let labs = g_subjects.filter(s => s.type === 'Lab');
+
+    if (g_labFilter === 'danger') labs = labs.filter(s => parseFloat(s.percent) < 75);
+    else if (g_labFilter === 'safe') labs = labs.filter(s => parseFloat(s.percent) >= 75);
+
+    if (g_labSort === 'asc') labs.sort((a, b) => parseFloat(a.percent) - parseFloat(b.percent));
+    else if (g_labSort === 'desc') labs.sort((a, b) => parseFloat(b.percent) - parseFloat(a.percent));
+
+    if (labs.length === 0) {
+        container.innerHTML = `<div style="text-align:center; padding:20px; color:var(--text-light); font-weight:600;">No lab subjects match this filter.</div>`;
+        return;
+    }
+
+    labs.forEach((sub, index) => {
+        const p = parseFloat(sub.percent);
+        const color = p < 75 ? '#ef4444' : '#10b981';
+        const key = labKey(sub);
+        const id = safeDomId(key);
+        const weight = getLabWeight(key);
+
+        const card = document.createElement('div');
+        card.className = 'sub-card lab-card';
+        card.style.borderLeftColor = color;
+        card.style.animationDelay = `${index * 0.08}s`;
         card.innerHTML = `
-            <div class="sub-header">
-                <span class="sub-name">${sub.name}</span>
-                <span class="sub-percent" style="color:${color}">${sub.percent}%</span>
+            ${buildSubCardHtml(sub, color)}
+            <div class="lab-weight-row">
+                <span class="lab-weight-label">1 Lab Attendance =</span>
+                <div class="lab-weight-stepper">
+                    <button class="lab-weight-btn" onclick="changeLabWeight('${key}', -1)">−</button>
+                    <span class="lab-weight-val" id="labWeight_${id}">${weight}</span>
+                    <button class="lab-weight-btn" onclick="changeLabWeight('${key}', 1)">+</button>
+                </div>
+                <span class="lab-weight-label">Classes</span>
             </div>
-            <div class="progress-track">
-                <div class="progress-fill" style="width:0%; background:${color};" data-target="${sub.percent}"></div>
-            </div>
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <span style="font-size:0.8rem; font-weight:700; color:var(--text-light);">${sub.attended}/${sub.total} classes</span>
-                ${msgHtml}
-            </div>
+            <div class="lab-equiv" id="labEquiv_${id}">📊 Ratio: 1 Lab ≈ <b>${weight}</b> Lecture Classes &nbsp;|&nbsp; Equivalent: <b>${sub.attended * weight}/${sub.total * weight}</b> classes</div>
         `;
 
         container.appendChild(card);
-
-        requestAnimationFrame(() => {
-            card.style.animation = `slideUpFade 0.5s ease forwards`;
-            card.style.animationDelay = `${index * 0.08}s`;
-            setTimeout(() => {
-                const fill = card.querySelector('.progress-fill');
-                if (fill) fill.style.width = fill.dataset.target + '%';
-            }, index * 80 + 100);
-        });
+        animateCard(card, index);
     });
 }
 

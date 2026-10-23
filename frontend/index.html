@@ -2794,8 +2794,28 @@ function processReport() {
             return;
         }
 
+        // Event rows (fests, sports days, etc.), e.g.:
+        // "Techpravah 2026   2026-10-12 - 2026-10-15   9.00   15.00   24.00"
+        // ERP note: "Event hours are included in aggregate attendance but
+        // are not assigned to individual lectures, labs, or days." These
+        // hours never appear in the subject table above, so they must be
+        // added here or the overall % won't match ERP's own Aggregate.
+        const eventRegex = /^(.+?)\s+\d{4}-\d{2}-\d{2}\s*-\s*\d{4}-\d{2}-\d{2}\s+([0-9.]+)\s+([0-9.]+)\s+([0-9.]+)$/;
+        lines.forEach(line => {
+            const m = line.trim().match(eventRegex);
+            if (m) {
+                g_present += parseFloat(m[2]);
+                g_total += parseFloat(m[4]);
+            }
+        });
+
         localStorage.setItem('academic_data_v8', text);
-        g_percent = ((g_present / g_total) * 100).toFixed(2);
+
+        // Trust ERP's own stated "Aggregate : NN.NN" when present — it's
+        // the ground truth and covers any other hidden adjustment beyond
+        // just event hours.
+        const aggMatch = text.match(/Aggregate\s*:?\s*([0-9.]+)/i);
+        g_percent = aggMatch ? parseFloat(aggMatch[1]).toFixed(2) : ((g_present / g_total) * 100).toFixed(2);
 
         document.getElementById('skeleton-loader').style.display = 'none';
         updateDashboard();

@@ -1,8 +1,10 @@
-// functions/api/promo-config.js -> GET/POST /api/promo-config
+// functions/api/site-config.js -> GET/POST /api/site-config
 //
-// Backend-controlled promo cards for the swipeable popup, so the site admin
-// can manage them from a password-protected page (/admin.html) instead of
-// hand-editing raw JSON in a Gist.
+// Backend-controlled site content, managed from a password-protected page
+// (/admin.html) instead of hand-editing raw JSON in a Gist. Covers:
+//   - promoCards: the swipeable popup's cards
+//   - amazonDeals: the "Trending Top Picks" category carousel
+//   - support: the UPI/QR support section (and whether to show it at all)
 //
 // ONE-TIME SETUP (the only setup this needs):
 // 1. Cloudflare Pages project -> Settings -> Environment variables, add:
@@ -10,15 +12,17 @@
 // 2. Redeploy (env var changes need a redeploy to take effect).
 // 3. Open /admin.html on your site and log in with that password.
 //
-// GET  (public, no auth) -> { ok:true, cards: [...] | null }
+// GET  (public, no auth) -> { ok:true, config: {...} | null }
 //   null means "nothing saved yet" -> the site falls back to its built-in
-//   default cards until you save something from /admin.html.
-// POST (requires { password, cards } in the JSON body) -> overwrites the
-//   saved cards. Wrong/missing password -> 401, nothing is changed.
+//   defaults until you save something from /admin.html.
+// POST (requires { password, config } in the JSON body) -> overwrites the
+//   saved config. Wrong/missing password -> 401, nothing is changed.
+//   { password } with no `config` field just verifies the password
+//   (used by the admin page's login step) without saving anything.
 
 import { kvGetJSON, kvSetJSON, jsonResponse } from '../lib/kv.js';
 
-const KEY = 'promoCards';
+const KEY = 'siteConfig';
 
 function safeEqual(a, b) {
   const encoder = new TextEncoder();
@@ -32,14 +36,14 @@ function safeEqual(a, b) {
 
 export async function onRequestGet({ env }) {
   try {
-    const cards = await kvGetJSON(env, KEY);
-    return new Response(JSON.stringify({ ok: true, cards: cards || null }), {
+    const config = await kvGetJSON(env, KEY);
+    return new Response(JSON.stringify({ ok: true, config: config || null }), {
       status: 200,
       headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' }
     });
   } catch (err) {
-    console.error('promo-config GET error:', err);
-    return jsonResponse({ ok: true, cards: null });
+    console.error('site-config GET error:', err);
+    return jsonResponse({ ok: true, config: null });
   }
 }
 
@@ -58,20 +62,20 @@ export async function onRequestPost({ request, env }) {
   if (!body.password || !safeEqual(body.password, ADMIN_PASSWORD)) {
     return jsonResponse({ ok: false, error: 'Wrong password' }, 401);
   }
-  // No `cards` field = the admin page is just verifying the password
+  // No `config` field = the admin page is just verifying the password
   // (login step), not saving anything yet.
-  if (body.cards === undefined) {
+  if (body.config === undefined) {
     return jsonResponse({ ok: true, verified: true });
   }
-  if (!Array.isArray(body.cards)) {
-    return jsonResponse({ ok: false, error: 'cards must be an array' }, 400);
+  if (typeof body.config !== 'object' || body.config === null || Array.isArray(body.config)) {
+    return jsonResponse({ ok: false, error: 'config must be an object' }, 400);
   }
 
   try {
-    await kvSetJSON(env, KEY, body.cards);
+    await kvSetJSON(env, KEY, body.config);
     return jsonResponse({ ok: true });
   } catch (err) {
-    console.error('promo-config POST error:', err);
+    console.error('site-config POST error:', err);
     return jsonResponse({ ok: false, error: 'Failed to save' }, 500);
   }
 }
